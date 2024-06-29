@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>حساب التجانس</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background-color: #f0f0f0;
+            direction: rtl;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #fff;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+        }
+        textarea, button {
+            padding: 10px;
+            margin: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+            width: 100%;
+        }
+        textarea {
+            resize: vertical;
+            height: 100px;
+            overflow-y: scroll;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .result {
+            margin: 10px 0;
+            padding: 10px;
+            background-color: #f9f9f9;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>حساب التجانس</h1>
+        <textarea id="numbersList" placeholder="أدخل الأرقام، كل رقم في سطر جديد"></textarea>
+        <div id="results">
+            <div id="countResult" class="result hidden"></div>
+            <div id="averageResult" class="result hidden"></div>
+            <div id="homogeneityResult" class="result hidden"></div>
+            <div id="rangeResult" class="result hidden"></div>
+            <div id="maxResult" class="result hidden"></div>
+            <div id="minResult" class="result hidden"></div>
+            <div id="cvResult" class="result hidden"></div>
+        </div>
+        <button onclick="saveResults()">حفظ النتائج</button>
+        <button onclick="saveChart()">حفظ صورة التجانس</button>
+        <canvas id="homogeneityChart" style="display: none;"></canvas>
+    </div>
+
+    <script>
+        function calculate() {
+            const numbersText = document.getElementById('numbersList').value.trim();
+            const numbers = numbersText.split('\n').map(Number).filter(n => !isNaN(n));
+
+            if (numbers.length === 0) return;
+
+            const count = numbers.length;
+            const average = numbers.reduce((a, b) => a + b, 0) / count;
+            const max = Math.max(...numbers);
+            const min = Math.min(...numbers);
+            const homogeneity = (numbers.filter(n => n > average * 1.1).length + numbers.filter(n => n < average * 0.9).length - count) / count * 100;
+            const cv = ((max - min) / average * 5.2) * 100;
+            const rangeStart = average * 0.9;
+            const rangeEnd = average * 1.1;
+
+            document.getElementById('countResult').textContent = `عدد الأرقام: ${count}`;
+            document.getElementById('averageResult').textContent = `المتوسط: ${average.toFixed(0)}`;
+            document.getElementById('homogeneityResult').textContent = `التجانس: ${homogeneity.toFixed(0)}%`;
+            document.getElementById('rangeResult').textContent = `مدى التجانس: ${rangeStart.toFixed(0)} إلى ${rangeEnd.toFixed(0)}`;
+            document.getElementById('maxResult').textContent = `أعلى قيمة: ${max}`;
+            document.getElementById('minResult').textContent = `أقل قيمة: ${min}`;
+            document.getElementById('cvResult').textContent = `معامل الاختلاف: ${cv.toFixed(0)/100}`;
+
+            document.querySelectorAll('.result').forEach(el => el.classList.remove('hidden'));
+        }
+
+        // إضافة مستمع للأحداث لمراقبة التغييرات في numbersList
+        document.getElementById('numbersList').addEventListener('input', function() {
+            calculate();
+        });
+
+        function saveResults() {
+            const numbersText = document.getElementById('numbersList').value.trim();
+            const results = `
+الأرقام:
+${numbersText}
+
+عدد الأرقام: ${document.getElementById('countResult').textContent}
+المتوسط: ${document.getElementById('averageResult').textContent}
+التجانس: ${document.getElementById('homogeneityResult').textContent}
+مدى التجانس: ${document.getElementById('rangeResult').textContent}
+أعلى قيمة: ${document.getElementById('maxResult').textContent}
+أقل قيمة: ${document.getElementById('minResult').textContent}
+معامل الاختلاف: ${document.getElementById('cvResult').textContent}
+            `;
+            const blob = new Blob([results], { type: 'text/plain' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = 'results.txt';
+            link.click();
+        }
+
+function saveChart() {
+    const canvas = document.getElementById('homogeneityChart');
+    const ctx = canvas.getContext('2d');
+    const numbersText = document.getElementById('numbersList').value.trim();
+    const numbers = numbersText.split('\n').map(Number).filter(n => !isNaN(n));
+
+    if (numbers.length === 0) return;
+
+    const minValue = Math.min(...numbers) - 50;
+    const maxValue = Math.max(...numbers) + 50;
+    const canvasHeight = maxValue * 5; // طول الصورة يتناسب مع مدى القيم
+    const canvasWidth = 700; // عرض الصورة 700
+
+    const scale = canvasHeight / (maxValue - minValue);
+
+    canvas.width = canvasWidth;
+    canvas.height = canvasHeight;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // رسم المحور Y
+    ctx.beginPath();
+    ctx.moveTo(30, 0);
+    ctx.lineTo(30, canvasHeight);
+    ctx.stroke();
+
+    // إضافة العلامات على المحور Y
+    for (let value = minValue; value <= maxValue; value += 20) {
+        const y = canvasHeight - (value - minValue) * scale;
+        ctx.fillText(value, 15, y);
+        ctx.beginPath();
+        ctx.moveTo(45, y);
+        ctx.lineTo(50, y);
+        ctx.stroke();
+    }
+
+    // حساب تكرار كل رقم
+    const numberFrequency = {};
+    numbers.forEach(number => {
+        numberFrequency[number] = (numberFrequency[number] || 0) + 1;
+    });
+
+    // توزيع الأرقام على المحور Y مع تكرار الشرطات
+    for (let number in numberFrequency) {
+        const y = canvasHeight - (number - minValue) * scale;
+        for (let i = 0; i < numberFrequency[number]; i++) {
+            ctx.beginPath();
+            ctx.moveTo(60 + i * 10, y);
+            ctx.lineTo(80 + i * 10, y - 10);
+            ctx.stroke();
+        }
+    }
+
+    const link = document.createElement('a');
+    link.href = canvas.toDataURL('image/jpg');
+    link.download = 'homogeneity_chart.jpg';
+    link.click();
+}
+    </script>
+</body>
+</html>
